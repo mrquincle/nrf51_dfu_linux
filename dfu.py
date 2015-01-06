@@ -15,6 +15,10 @@ class Commands:
     ACTIVATE_FIRMWARE_AND_RESET = 5
     SYSTEM_RESET = 6 
 
+# different CHUNK_SIZE does not work somehow
+#CHUNK_SIZE = 512
+CHUNK_SIZE = 20
+
 def convert_uint32_to_array(value):
     """ Convert a number into an array of 4 bytes (LSB). """
     return [
@@ -120,8 +124,8 @@ class BleDfuUploader(object):
         
         # Send hex file data packets
         chunk = 1
-        for i in range(0, hex_size, 20):
-            data_to_send = bin_array[i:i + 20]
+        for i in range(0, hex_size, CHUNK_SIZE):
+            data_to_send = bin_array[i:i + CHUNK_SIZE]
             self._dfu_data_send(data_to_send)
 
             print "Chunk #", chunk                                                      

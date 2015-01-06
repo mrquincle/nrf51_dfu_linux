@@ -11,6 +11,7 @@ Inspired by the gatttool wrapping solution by Michael
 Saunby (https://github.com/msaunby/ble-sensor-pi).
 
 System:
+
 * Linux Mint 16 - kernel 3.11.0-12-generic
 * bluez - 4.101-0ubuntu8b1
 
@@ -27,6 +28,8 @@ To figure out the address of DfuTarg do a hcitool lescan -
     CD:E3:4A:47:1C:E4 DfuTarg
     CD:E3:4A:47:1C:E4 (unknown)
 
+Copyrights:
 
+Fork from: https://bitbucket.org/glennrub/nrf51_dfu_linux
 
 
