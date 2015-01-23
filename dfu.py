@@ -45,22 +45,30 @@ def convert_array_to_hex_string(arr):
 
 
 class BleDfuUploader(object):
+    # for S130
+    #ctrlpt_handle = 0x10
+    #ctrlpt_cccd_handle = 0x11
+    #data_handle = 0x0E
 
-    ctrlpt_handle = 0x10
-    ctrlpt_cccd_handle = 0x11
-    data_handle = 0x0E
+    # for S110
+    ctrlpt_handle = 0x0D
+    ctrlpt_cccd_handle = 0x0E
+    data_handle = 0x0B
 
     def __init__(self, target_mac, hexfile_path):
         self.hexfile_path = hexfile_path
+        print "gatttool -b '%s' -t random --interactive" % target_mac
         self.ble_conn = pexpect.spawn("gatttool -b '%s' -t random --interactive" % target_mac)
 
     # Connect to peer device.
     def scan_and_connect(self):
+        print "Wait for scan result and connect"
         try:
             self.ble_conn.expect('\[LE\]>', timeout=10)
         except pexpect.TIMEOUT, e:
             print "timeout"
-        
+       
+        print "Send: connect"
         self.ble_conn.sendline('connect')
 
         try:
@@ -69,6 +77,7 @@ class BleDfuUploader(object):
             print "timeout"
     
     def _dfu_state_set(self, opcode):
+        print "Send: char-write-req 0x%02x %02x" % (self.ctrlpt_handle, opcode)
         self.ble_conn.sendline('char-write-req 0x%02x %02x' % (self.ctrlpt_handle, opcode))        
 
         # Verify that command was successfully written
@@ -90,6 +99,7 @@ class BleDfuUploader(object):
     def _dfu_enable_cccd(self):
         cccd_enable_value_array_lsb = convert_uint16_to_array(0x0001)
         cccd_enable_value_hex_string = convert_array_to_hex_string(cccd_enable_value_array_lsb) 
+        print "Send: char-write-req 0x%02x %s" % (self.ctrlpt_cccd_handle, cccd_enable_value_hex_string)
         self.ble_conn.sendline('char-write-req 0x%02x %s' % (self.ctrlpt_cccd_handle, cccd_enable_value_hex_string))        
 
         # Verify that CCCD was successfully written
