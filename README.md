@@ -1,3 +1,68 @@
+
+Python nrf51822 Batch DFU OTA uploader
+======================================
+
+## How to use:
+
+After installing the prerequisites, run scan.py as root (it uses hcitool, which needs root access). You can click on the adresses in the scan list
+to move them to the OTA list. To remove you can click on them in the OTA list. This fills the ota_macs.config.
+
+```
+sudo python scan.py
+```
+
+With a configured ota_macs.config, run
+
+```
+python otaBatch.py -f 'path to hex file'
+```
+
+to update all the selected MAC adresses one by one automatically.
+
+## Prerequisite:
+
+Prior to running, install:
+
+Python 2.7
+pygame
+Pexpect
+Intelhex
+
+```
+sudo apt-get install python-pygame python-pip
+sudo pip install pexpect
+sudo pip install intelhex --allow-unverified intelhex
+```
+
+Bluez (tested on 5.21): 
+From (http://stackoverflow.com/questions/24853597/ble-gatttool-cannot-connect-even-though-device-is-discoverable-with-hcitool-lesc)
+
+Remove the Bluez installation and perform an update:
+
+```
+sudo apt-get --purge remove bluez
+sudo apt-get update
+```
+Make sure you have the necessary libs:
+```
+sudo apt-get install libusb-dev libdbus-1-dev libglib2.0-dev libudev-dev libical-dev libreadline-dev
+```
+
+Download and extract the newest Bluez version (at the time it's 5.21):
+```
+sudo wget https://www.kernel.org/pub/linux/bluetooth/bluez-5.21.tar.xz
+sudo tar xvf bluez-5.21.tar.xz
+```
+Go to the Bluez folder, configure and install (The "sudo make" line takes some time to process):
+
+```
+cd bluez-5.21
+sudo ./configure --disable-systemd
+sudo make
+sudo make install
+sudo cp attrib/gatttool /usr/bin/
+```
+
 Python nrf51822 DFU uploader
 ============================
 
