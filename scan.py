@@ -46,6 +46,18 @@ def removeFromConfig(MACaddress):
             newConfig.append(config)
     configContent = newConfig
 
+def updateInConfig(MACaddress,name):
+    global configContent;
+    updated = False
+    if name != "(unknown)":
+        for index,config in enumerate(configContent):
+            if config['mac'] == MACaddress:
+                updated = True
+                configContent[index]['name'] = name
+
+    if updated:
+        updateFile()
+
 
 # this inherits from a GUI interface
 class gui(interface):
@@ -56,6 +68,7 @@ class gui(interface):
 
     # create the GUI elements visible on screen
     def createGUIElements(self):
+
         # get the nodes found by the scanner
         availableNodes = scanner.get();
 
@@ -66,6 +79,9 @@ class gui(interface):
 
         # write the available node list.
         for i,value in enumerate(availableNodes):
+            # update name in file if it is not unknown
+            updateInConfig(value['mac'], value['name'])
+
             self.writetext(value['mac'] + ' ' + value['name'],4,10,30 + 20*i,False,False,self.getColor(value['mac'],False,configContent))
             # screenspace is a rectangle to which a callback can be bound when clicked on.
             self.screenspace['scanning__' + value['mac'] + '_' + value['name']] = ((10,25 + 20*i),(280,45 + 20*i))

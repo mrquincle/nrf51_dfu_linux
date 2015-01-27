@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, re
 import pexpect
 import optparse
 import time
@@ -16,7 +16,7 @@ class Commands:
     SYSTEM_RESET = 6
 
 # different CHUNK_SIZE does not work somehow
-#CHUNK_SIZE = 512
+# CHUNK_SIZE = 15
 CHUNK_SIZE = 20
 
 def convert_uint32_to_array(value):
@@ -57,109 +57,189 @@ class BleDfuUploader(object):
 
     def __init__(self, target_mac, hexfile_path):
         self.hexfile_path = hexfile_path
-        print "gatttool -b '%s' -t random --interactive" % target_mac
+        self.target_mac = target_mac
+        # print "gatttool -b '%s' -t random --interactive" % target_mac
         self.ble_conn = pexpect.spawn("gatttool -b '%s' -t random --interactive" % target_mac)
 
     # Connect to peer device.
     def scan_and_connect(self):
-        print "Wait for scan result and connect"
+        # print "Wait for scan result and connect"
         try:
             self.ble_conn.expect('\[LE\]>', timeout=10)
         except pexpect.TIMEOUT, e:
             print "timeout on scan for target"
             return False
 
-        print "Send: connect"
+        # print "Send: connect"
         self.ble_conn.sendline('connect')
 
         try:
-            res = self.ble_conn.expect('\[CON\].*>', timeout=10)
+            res = self.ble_conn.expect(['successful'], timeout=10)
         except pexpect.TIMEOUT, e:
             print "timeout on connect to target"
             return False
 
-        print 'connected'
+        print 'Connected.'
         return True
 
+    def _dfu_toggle_mode(self):
+        found_characteristic = True
+        already_in_DFU = False
+
+        #look for DFU switch characteristic
+        self.ble_conn.sendline('characteristics')
+        try:
+            res = self.ble_conn.expect(['f5f90005-59f9-11e4-aa15-123b93f75cba'], timeout=5)
+            resetHandle = self.ble_conn.before
+        except pexpect.TIMEOUT, e:
+            found_characteristic = False
+
+        if not found_characteristic:
+            # maybe it already is IN DFU mode
+            self.ble_conn.sendline('characteristics')
+            try:
+                res = self.ble_conn.expect(['00001531-1212-efde-1523-785feabcd123'], timeout=5)
+                already_in_DFU = True
+            except pexpect.TIMEOUT, e:
+                print "Not in DFU, nor has the toggle characteristic, aborting.."
+                return False
+
+        if found_characteristic or already_in_DFU:
+            if not already_in_DFU:
+                print "Switching device into DFU mode"
+                handles = re.findall(r"char value handle: 0x..(..)", resetHandle)
+                self.ble_conn.sendline('char-write-req 0x%02s %02x' % (handles[-1], 1))
+                try:
+                    res = self.ble_conn.expect('Characteristic value was written successfully', timeout=10)
+                except pexpect.TIMEOUT, e:
+                    print "timeout toggling to DFU mode"
+                    return False
+
+                print "Node is being restarted"
+                self.ble_conn.sendline('exit')
+                time.sleep(0.5)
+                self.ble_conn.kill(0)
+
+                time.sleep(5)
+                print "Reconnecting"
+                self.__init__(self.target_mac, self.hexfile_path)
+                return self.scan_and_connect()
+            else:
+                print "Node already in DFU mode"
+            return True
+        else:
+
+            return False
+
+
     def _dfu_state_set(self, opcode):
-        print "Send: char-write-req 0x%02x %02x" % (self.ctrlpt_handle, opcode)
+        # print "Send: char-write-req 0x%02x %02x" % (self.ctrlpt_handle, opcode)
         self.ble_conn.sendline('char-write-req 0x%02x %02x' % (self.ctrlpt_handle, opcode))        
 
         # Verify that command was successfully written
         try:
-            res = self.ble_conn.expect('.* Characteristic value was written successfully', timeout=10)
+            res = self.ble_conn.expect('Characteristic value was written successfully', timeout=10)
         except pexpect.TIMEOUT, e:
-            print "timeout"
+            print "timeout on dfu state set"
+            return False
+        return True
 
     def _dfu_data_send(self, data_arr):
         hex_str = convert_array_to_hex_string(data_arr)
+
         self.ble_conn.sendline('char-write-req 0x%02x %s' % (self.data_handle, hex_str))
 
         # Verify that data was successfully written
         try:
-            res = self.ble_conn.expect('.* Characteristic value was written successfully', timeout=10)
+            res = self.ble_conn.expect('Characteristic value was written successfully', timeout=4)
         except pexpect.TIMEOUT, e:
-            print "timeout"
+            print "timeout data send",e
 
     def _dfu_enable_cccd(self):
         cccd_enable_value_array_lsb = convert_uint16_to_array(0x0001)
         cccd_enable_value_hex_string = convert_array_to_hex_string(cccd_enable_value_array_lsb) 
-        print "Send: char-write-req 0x%02x %s" % (self.ctrlpt_cccd_handle, cccd_enable_value_hex_string)
+        # print "Send: char-write-req 0x%02x %s" % (self.ctrlpt_cccd_handle, cccd_enable_value_hex_string)
         self.ble_conn.sendline('char-write-req 0x%02x %s' % (self.ctrlpt_cccd_handle, cccd_enable_value_hex_string))        
 
         # Verify that CCCD was successfully written
         try:
-            res = self.ble_conn.expect('.* Characteristic value was written successfully', timeout=10)
+            res = self.ble_conn.expect('Characteristic value was written successfully', timeout=10)
         except pexpect.TIMEOUT, e:
-            print "timeout on writing cccd to Characteristic"
+            print "timeout on writing cccd to Characteristic",e
             return False
 
+        # print "CCCD written"
         return True
 
     # Transmit the hex image to peer device.
     def dfu_send_image(self):
+        # scan for characteristics:
+        status = self._dfu_toggle_mode()
+
+        if not status:
+            return False
+
         # Enable Notifications - Setting the DFU Control Point CCCD to 0x0001
         status = self._dfu_enable_cccd()
 
-        if status:
-            # Open the hex file to be sent
-            ih = IntelHex(self.hexfile_path)
-            bin_array = ih.tobinarray()
+        if not status:
+            return False
 
-            hex_size = len(bin_array)
-            print "Hex file size: ", hex_size
+        # Open the hex file to be sent
+        ih = IntelHex(self.hexfile_path)
+        bin_array = ih.tobinarray()
 
-            # Sending 'START DFU' Command
-            self._dfu_state_set(Commands.START_DFU)
+        hex_size = len(bin_array)
+        # print "Hex file size: ", hex_size
 
-            # Transmit image size
-            hex_size_array_lsb = convert_uint32_to_array(len(bin_array))
-            self._dfu_data_send(hex_size_array_lsb)
-            print "Sending hex file size"
+        # Sending 'START DFU' Command
+        self._dfu_state_set(Commands.START_DFU)
 
-            # Send 'RECEIVE FIRMWARE IMAGE' command to set DFU in firmware receive state.
-            self._dfu_state_set(Commands.RECEIVE_FIRMWARE_IMAGE)
+        # Transmit image size
+        hex_size_array_lsb = convert_uint32_to_array(len(bin_array))
+        self._dfu_data_send(hex_size_array_lsb)
+        # print "Sending hex file size"
 
-            # Send hex file data packets
-            chunk = 1
-            for i in range(0, hex_size, CHUNK_SIZE):
-                data_to_send = bin_array[i:i + CHUNK_SIZE]
-                self._dfu_data_send(data_to_send)
+        # Send 'RECEIVE FIRMWARE IMAGE' command to set DFU in firmware receive state.
+        self._dfu_state_set(Commands.RECEIVE_FIRMWARE_IMAGE)
 
-                print "Chunk #", chunk
-                chunk += 1
+        print "Start sending data"
+        # Send hex file data packets
+        timeStart = time.time()
+        chunk = 1
+        self.ble_conn.delaybeforesend = 0.0
+        for i in range(0, hex_size, CHUNK_SIZE):
+            data_to_send = bin_array[i:i + CHUNK_SIZE]
+            self._dfu_data_send(data_to_send)
 
-            # Send Validate Command
-            self._dfu_state_set(Commands.VALIDATE_FIRMWARE_IMAGE)
+            if chunk % 100 == 0:
+                print "Chunk #", chunk, "/" ,  hex_size / CHUNK_SIZE
 
-            # Wait a bit for copy on the peer to be finished
-            time.sleep(1)
+            chunk += 1
+        print "Firmware transferred in ", time.time() - timeStart
+        self.ble_conn.delaybeforesend = 0.05
 
-            # Send Activate and Reset Command
-            self._dfu_state_set(Commands.ACTIVATE_FIRMWARE_AND_RESET)
+        time.sleep(1)
 
-            return True
-        return False
+        # Send Validate Command
+        print "Validating..."
+        status = self._dfu_state_set(Commands.VALIDATE_FIRMWARE_IMAGE)
+
+        if not status:
+            print "Could not validate firmware."
+            return False
+
+        # Wait a bit for copy on the peer to be finished
+        time.sleep(3)
+
+        # Send Activate and Reset Command
+        status = self._dfu_state_set(Commands.ACTIVATE_FIRMWARE_AND_RESET)
+        if not status:
+            print "Could not activate."
+            return False
+
+        print "Validated. Rebooting application."
+        return True
 
 
     # Disconnect from peer device if not done already and clean up.

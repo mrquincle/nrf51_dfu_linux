@@ -5,7 +5,8 @@ Python nrf51822 Batch DFU OTA uploader
 ## How to use:
 
 After installing the prerequisites, run scan.py as root (it uses hcitool, which needs root access). You can click on the adresses in the scan list
-to move them to the OTA list. To remove you can click on them in the OTA list. This fills the ota_macs.config.
+to move them to the OTA list. To remove you can click on them in the OTA list. This fills the ota_macs.config. This also sets a device in DFU mode if it is not it already.
+This relies on the modified nordic bootloader and the crownstone characteristic to put it into DFU mode.
 
 ```
 sudo python scan.py
@@ -14,10 +15,14 @@ sudo python scan.py
 With a configured ota_macs.config, run
 
 ```
-python otaBatch.py -f 'path to hex file'
+sudo python otaBatch.py -f 'path to hex file'
 ```
 
-to update all the selected MAC adresses one by one automatically.
+to update all the selected MAC adresses one by one automatically. Sudo is required because we use the HCItools to reset the HCI device beforehand. To do this manually, you can call
+
+```
+sudo python reset.py
+```
 
 ## Prerequisite:
 
