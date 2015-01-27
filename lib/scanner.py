@@ -4,6 +4,13 @@ import time
 import threading
 import commands
 
+def resetHCI():
+    commands.getoutput("hcitool dev")
+    commands.getoutput('hciconfig hci0 down')
+    commands.getoutput('hciconfig hci0 up')
+    commands.getoutput("hcitool dev")
+    commands.getoutput('killall hcitool')
+
 # this is a fake file handler because the logging of pexpect needs a file or sys.stdout
 class dummyfile(object):
 
@@ -46,11 +53,7 @@ class scanner(threading.Thread):
 
     # reset the hcitool, we assume hci0 is the required device
     def init(self):
-        commands.getoutput("hcitool dev")
-        commands.getoutput('hciconfig hci0 down')
-        commands.getoutput('hciconfig hci0 up')
-        commands.getoutput("hcitool dev")
-        commands.getoutput('killall hcitool')
+        resetHCI()
 
     # run the hcitool scan for 200 seconds
     def scan(self):

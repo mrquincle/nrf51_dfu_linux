@@ -3,6 +3,7 @@ __author__ = 'alex'
 import sys, optparse
 from dfu import *
 from scan import readConfig
+from lib.scanner import resetHCI
 
 if __name__ == '__main__':
     try:
@@ -26,6 +27,7 @@ if __name__ == '__main__':
 
     # read the config file to obtain mac adresses
     configContent = readConfig()
+    resetHCI()
 
     if (not options.hex_file):
         parser.print_help()
@@ -38,6 +40,7 @@ if __name__ == '__main__':
     # if we have mac adresses
     if len(configContent) > 0:
         for entree in configContent:
+            timeStart = time.time()
             print 'Attempting ' + entree['mac'] + " (" + entree['name'] + ")"
             ble_dfu = BleDfuUploader(entree['mac'].upper(), options.hex_file)
 
@@ -54,9 +57,10 @@ if __name__ == '__main__':
                     # Disconnect from peer device if not done already and clean up.
                     ble_dfu.disconnect()
                 else:
-                    print "Required Characteristic not found. Is this a crownstone?"
+                    print "Firmware could not be updated."
             else:
                 print "Could not connect.. Aborting. Is node " + entree['mac'] + " still online?"
+            print "Node process took:", time.time() - timeStart
     else:
         print "No MAC addresses supplied."
         print "Add them manually to the ota_macs.config file or run:"
