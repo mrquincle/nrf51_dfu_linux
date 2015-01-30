@@ -55,10 +55,10 @@ class scanner(threading.Thread):
     def init(self):
         resetHCI()
 
-    # run the hcitool scan for 200 seconds
+    # run the hcitool scan for 20000 seconds
     def scan(self):
         self.startedScanning = True;
-        self.child = pexpect.run("hcitool lescan", timeout=200, logfile=self.dummyFile)
+        self.child = pexpect.run("hcitool lescan", timeout=20000, logfile=self.dummyFile)
 
     # get the list asynchronously
     def get(self):
