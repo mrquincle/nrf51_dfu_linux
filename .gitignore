@@ -1,3 +1,4 @@
 .idea/
 *.pyc
 *.hex
+ota_macs.config

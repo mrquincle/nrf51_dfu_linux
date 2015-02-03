@@ -2,13 +2,15 @@
 
 from lib.scanner import *
 from lib.interface import *
-import sys,getopt
+import sys,getopt,os
 
 global configContent;
 
 # read the config file
 def readConfig():
     configContent = []
+    if not os.path.exists("ota_macs.config"):
+        return configContent
     f = open("ota_macs.config",'r')
     content = f.read()
     lines = content.split("\r\n");
