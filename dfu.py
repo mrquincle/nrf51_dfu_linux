@@ -83,26 +83,26 @@ class BleDfuUploader(object):
     ctrlpt_cccd_handle = '0e' # these are automatically discovered in _dfu_get_handles
     data_handle = '0b'        # these are automatically discovered in _dfu_get_handles
 
-    def __init__(self, target_mac, hexfile_path):
+    def __init__(self, target_mac, hexfile_path, interface):
         self.hexfile_path = hexfile_path
         self.target_mac = target_mac
-        # print "gatttool -b '%s' -t random --interactive" % target_mac
-        self.ble_conn = pexpect.spawn("gatttool -b '%s' -t random --interactive" % target_mac)
+        print "gatttool -b '%s' -i '%s' -t random --interactive" % (target_mac, interface)
+        self.ble_conn = pexpect.spawn("gatttool -b '%s' -i '%s' -t random --interactive" % (target_mac, interface))
 
     # Connect to peer device.
     def scan_and_connect(self):
-        # print "Wait for scan result and connect"
+        print "Wait for scan result and connect"
         try:
             self.ble_conn.expect('\[LE\]>', timeout=10)
         except pexpect.TIMEOUT, e:
             print "timeout on scan for target"
             return False
 
-        # print "Send: connect"
+        print "Send: connect"
         self.ble_conn.sendline('connect')
 
         try:
-            res = self.ble_conn.expect(['successful'], timeout=10)
+            res = self.ble_conn.expect(['successful','CON'], timeout=10)
         except pexpect.TIMEOUT, e:
             print "timeout on connect to target"
             return False
@@ -302,6 +302,13 @@ if __name__ == '__main__':
                   default=None,
                   help='Hex file to be uploaded.'
                   )
+        parser.add_option('-i', '--interface',
+                  action='store',
+                  dest="interface",
+                  type="string",
+                  default="hci0",
+                  help='HCI interface to be used.'
+                  )
 
         options, args = parser.parse_args()
 
@@ -318,7 +325,7 @@ if __name__ == '__main__':
         print "Error: Hex file not found!"
         exit(2)
 
-    ble_dfu = BleDfuUploader(options.address.upper(), options.hex_file)
+    ble_dfu = BleDfuUploader(options.address.upper(), options.hex_file, options.interface)
 
     # Connect to peer device.
     ble_dfu.scan_and_connect()

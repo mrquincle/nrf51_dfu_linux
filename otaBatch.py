@@ -7,7 +7,7 @@ from lib.scanner import resetHCI
 
 if __name__ == '__main__':
     try:
-        parser = optparse.OptionParser(usage='%prog -f <hex_file> \n\nExample:\n\tpython otaBatch.py -f blinky.hex',
+        parser = optparse.OptionParser(usage='%prog -f <hex_file> \n\nExample:\n\tpython otaBatch.py -f blinky.hex -i hciX',
                                        version='0.1')
 
         parser.add_option('-f', '--file',
@@ -16,6 +16,13 @@ if __name__ == '__main__':
                           type="string",
                           default=None,
                           help='Hex file to be uploaded.'
+        )
+        parser.add_option('-i', '--interface',
+                  action='store',
+                  dest="interface",
+                  type="string",
+                  default="hci0",
+                  help='HCI interface to be used.'
         )
 
         options, args = parser.parse_args()
@@ -42,7 +49,7 @@ if __name__ == '__main__':
         for entree in configContent:
             timeStart = time.time()
             print 'Attempting ' + entree['mac'] + " (" + entree['name'] + ")"
-            ble_dfu = BleDfuUploader(entree['mac'].upper(), options.hex_file)
+            ble_dfu = BleDfuUploader(entree['mac'].upper(), options.hex_file, options.interface)
 
             # Connect to peer device.
             status = ble_dfu.scan_and_connect()
