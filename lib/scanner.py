@@ -44,7 +44,11 @@ class scanner(threading.Thread):
         self.uniqueIdList = []
         self.timeoutThreshold = 10
         self.startedScanning = False;
+        self.interface = "hci0"
         threading.Thread.__init__(self)
+
+    def setInterface(self, interface):
+        self.interface = interface;
 
     # called on start() of a thread
     def run(self):
@@ -58,7 +62,9 @@ class scanner(threading.Thread):
     # run the hcitool scan for 20000 seconds
     def scan(self):
         self.startedScanning = True;
-        self.child = pexpect.run("hcitool lescan", timeout=20000, logfile=self.dummyFile)
+        command = "hcitool -i " + self.interface + " lescan";
+        print command
+        self.child = pexpect.run(command, timeout=20000, logfile=self.dummyFile)
 
     # get the list asynchronously
     def get(self):
@@ -75,8 +81,13 @@ class scanner(threading.Thread):
     def process(self,content):
         for entree in content:
             data = entree.split(" ");
+            if len(data) < 2:
+                print "Empty record"
+                continue;
             exists = self.valueExists(data[0])
+
             if exists == -1:
+                print "Add unique id to list: " + data[0]
                 self.uniqueIdList.append({'mac': data[0], 'name': data[1].replace("\r\n",""), 'timestamp': time.time()})
             else:
                 self.uniqueIdList[exists]['timestamp'] = time.time()

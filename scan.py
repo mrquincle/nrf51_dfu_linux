@@ -1,5 +1,8 @@
+#!/usr/bin/python
+
 from lib.scanner import *
 from lib.interface import *
+import sys,getopt
 
 global configContent;
 
@@ -122,9 +125,24 @@ class gui(interface):
 
 
 # when run
-if __name__ == '__main__':
+def main(argv):
+    interface = "hci0"
+    try:
+      opts, args = getopt.getopt(argv,"hi:",["interface="])
+    except getopt.GetoptError:
+      print 'scan.py -i <hci device>'
+      sys.exit(2)
+    for opt, arg in opts:
+      if opt == '-h':
+         print 'scan.py -i <hci device>'
+         sys.exit()
+      elif opt in ("-i", "--interface"):
+         interface = arg
+
+    print "Use interface", interface
+    
     # start the thread that scans the ble devices (using hcitool lescan)
-    scanner = scanner()
+    scanner.setInterface(interface)
     scanner.setDaemon(True)
     scanner.start()
 
@@ -136,3 +154,8 @@ if __name__ == '__main__':
     theGui = gui()
     theGui.initGUI()
     theGui.run()
+
+if __name__ == '__main__':
+    scanner = scanner()
+    main(sys.argv[1:]);
+
