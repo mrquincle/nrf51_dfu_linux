@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 __author__ = 'alex'
 
 import sys, optparse
