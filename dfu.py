@@ -86,6 +86,7 @@ class BleDfuUploader(object):
     def __init__(self, target_mac, hexfile_path, interface):
         self.hexfile_path = hexfile_path
         self.target_mac = target_mac
+        self.interface = interface
         print "gatttool -b '%s' -i '%s' -t random --interactive" % (target_mac, interface)
         self.ble_conn = pexpect.spawn("gatttool -b '%s' -i '%s' -t random --interactive" % (target_mac, interface))
 
@@ -137,7 +138,7 @@ class BleDfuUploader(object):
                 print "Reconnecting..."
 
                 # reinitialize
-                self.__init__(self.target_mac, self.hexfile_path)
+                self.__init__(self.target_mac, self.hexfile_path, self.interface)
                 # reconnect
                 connected = self.scan_and_connect()
 
